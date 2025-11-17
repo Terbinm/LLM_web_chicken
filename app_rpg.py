@@ -614,8 +614,38 @@ def chat():
 
 @app.route('/')
 def index():
-    """Serve main page"""
-    return send_from_directory('static', 'index.html')
+    """Serve main page - redirect based on auth status"""
+    if current_user.is_authenticated:
+        # User is logged in, redirect to appropriate page
+        if current_user.character:
+            return redirect('/game.html')
+        else:
+            return redirect('/character.html')
+    else:
+        # User is not logged in, show login page
+        return send_from_directory('static', 'login.html')
+
+
+@app.route('/game.html')
+@login_required
+def game_page():
+    """Serve game page"""
+    return send_from_directory('static', 'game.html')
+
+
+@app.route('/character.html')
+@login_required
+def character_page():
+    """Serve character creation page"""
+    return send_from_directory('static', 'character.html')
+
+
+@app.route('/login.html')
+def login_page():
+    """Serve login page"""
+    if current_user.is_authenticated:
+        return redirect('/')
+    return send_from_directory('static', 'login.html')
 
 
 @app.route('/api/health', methods=['GET'])
