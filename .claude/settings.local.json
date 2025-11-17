@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(dir /S /B \"C:\\localfiles\\test_every_thing\\flask_llm_web\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 虛擬場景互動系統</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Vue.js 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Main Container -->
+        <div class="scene-section">
+            <!-- Scene Display -->
+            <div class="scene-display"
+                 :style="{ backgroundImage: `url(${currentSceneBackground})` }">
+                <div class="scene-overlay">
+                    <img :src="currentEmojiPath"
+                         :alt="currentEmoji"
+                         class="emoji-display"
+                         v-if="currentEmoji">
+                </div>
+            </div>
+
+            <!-- Scene Info -->
+            <div class="scene-info" v-if="currentScene">
+                <div class="scene-name">
+                    {{ currentScene.icon }} {{ currentScene.name }}
+                </div>
+                <div class="scene-description">
+                    {{ currentScene.description }}
+                </div>
+            </div>
+
+            <!-- Status Values -->
+            <div class="status-container">
+                <div class="status-title">⭐ 角色狀態</div>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">🍽️ 飢餓值</div>
+                        <div class="status-bar-container">
+                            <div class="status-bar-text">{{ status.hunger }}</div>
+                            <div :class="['status-bar', 'hunger', { low: status.hunger < 30 }]"
+                                 :style="{ width: status.hunger + '%' }">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">⚡ 精神值</div>
+                        <div class="status-bar-container">
+                            <div class="status-bar-text">{{ status.energy }}</div>
+                            <div :class="['status-bar', 'energy', { low: status.energy < 30 }]"
+                                 :style="{ width: status.energy + '%' }">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">😊 快樂值</div>
+                        <div class="status-bar-container">
+                            <div class="status-bar-text">{{ status.happiness }}</div>
+                            <div :class="['status-bar', 'happiness', { low: status.happiness < 30 }]"
+                                 :style="{ width: status.happiness + '%' }">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">💚 健康值</div>
+                        <div class="status-bar-container">
+                            <div class="status-bar-text">{{ status.health }}</div>
+                            <div :class="['status-bar', 'health', { low: status.health < 30 }]"
+                                 :style="{ width: status.health + '%' }">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scene Selector -->
+            <div class="scene-selector">
+                <button v-for="scene in scenes"
+                        :key="scene.id"
+                        @click="setScene(scene.id)"
+                        :class="['scene-button', { active: currentScene && currentScene.id === scene.id }]">
+                    <span>{{ scene.icon }}</span>
+                    <span>{{ scene.name }}</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat-section">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <h2 class="chat-title">對話互動</h2>
+                <button @click="clearHistory" class="clear-history-btn">
+                    清除歷史
+                </button>
+            </div>
+
+            <!-- Error Message -->
+            <div v-if="errorMessage" class="error-message">
+                {{ errorMessage }}
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" ref="chatMessages">
+                <!-- Welcome Message -->
+                <div v-if="messages.length === 0" class="message assistant">
+                    <div class="message-content">
+                        歡迎來到 AI 虛擬場景互動系統！我是您的虛擬助手，可以在不同場景中為您提供協助。
+                        <br><br>
+                        您可以：
+                        <br>• 與我自由對話，我會根據情境給予回應
+                        <br>• 點擊下方按鈕切換場景
+                        <br>• 在 MCP 工作室使用各種開發工具
+                        <br><br>
+                        請問有什麼我可以幫助您的嗎？
+                    </div>
+                </div>
+
+                <!-- Message List -->
+                <div v-for="(message, index) in messages"
+                     :key="index"
+                     :class="['message', message.role]">
+                    <div class="message-content">
+                        {{ message.content }}
+                    </div>
+
+                    <!-- MCP Output Display -->
+                    <div v-if="message.mcpOutput" class="mcp-output">
+                        <div class="mcp-output-title">
+                            🔧 MCP 工具執行結果
+                        </div>
+                        <div class="mcp-output-content">
+                            <strong>工具:</strong> {{ message.mcpOutput.tool_used }}
+                            <br>
+                            <strong>狀態:</strong> {{ message.mcpOutput.success ? '成功 ✓' : '失敗 ✗' }}
+                            <br>
+                            <strong>時間:</strong> {{ message.mcpOutput.timestamp }}
+                            <br><br>
+                            <strong>輸出:</strong>
+                            <br>{{ message.mcpOutput.output }}
+                        </div>
+                    </div>
+
+                    <div class="message-meta">
+                        {{ message.timestamp }}
+                    </div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div v-if="isLoading" class="message assistant">
+                    <div class="loading">
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                        <div class="loading-dot"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <input
+                        type="text"
+                        v-model="inputMessage"
+                        @keypress="handleKeyPress"
+                        :disabled="isLoading"
+                        placeholder="輸入訊息... (Enter 發送)"
+                        class="chat-input">
+                    <button
+                        @click="sendMessage"
+                        :disabled="isLoading || !inputMessage.trim()"
+                        class="send-button">
+                        發送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Vue App -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
