@@ -1,4 +1,7 @@
 Flask
 Flask-CORS
+Flask-SQLAlchemy
+Flask-Login
 python-dotenv
 requests
+Werkzeug
