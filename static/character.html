@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建角色</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 min-h-screen">
+    <div id="app" class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-4xl w-full bg-white bg-opacity-10 backdrop-blur-lg rounded-2xl shadow-2xl p-8">
+            <h1 class="text-4xl font-bold text-white text-center mb-8">⚔️ 创建你的角色</h1>
+            
+            <div v-if="!templates" class="text-white text-center">加载中...</div>
+            
+            <form v-else @submit.prevent="createCharacter" class="space-y-6">
+                <!-- Character Name -->
+                <div>
+                    <label class="block text-blue-200 text-sm font-medium mb-2">角色名称</label>
+                    <input v-model="form.name" required class="w-full px-4 py-3 bg-white bg-opacity-20 border border-blue-300 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="输入角色名称">
+                </div>
+
+                <!-- Personality -->
+                <div>
+                    <label class="block text-blue-200 text-sm font-medium mb-2">性格</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div v-for="(p, key) in templates.personalities" :key="key" @click="form.personality = key" :class="['p-4 rounded-lg cursor-pointer border-2 transition-all', form.personality === key ? 'bg-blue-500 border-blue-400' : 'bg-white bg-opacity-10 border-transparent hover:border-blue-400']">
+                            <h3 class="text-white font-bold">{{ p.name }}</h3>
+                            <p class="text-blue-200 text-sm">{{ p.description }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class -->
+                <div>
+                    <label class="block text-blue-200 text-sm font-medium mb-2">职业</label>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div v-for="(c, key) in templates.classes" :key="key" @click="form.character_class = key" :class="['p-4 rounded-lg cursor-pointer border-2 transition-all', form.character_class === key ? 'bg-purple-500 border-purple-400' : 'bg-white bg-opacity-10 border-transparent hover:border-purple-400']">
+                            <h3 class="text-white font-bold">{{ c.name }}</h3>
+                            <p class="text-blue-200 text-sm">{{ c.description }}</p>
+                            <div class="mt-2 text-xs text-blue-300">
+                                <div>HP: {{ c.base_stats.hp }}</div>
+                                <div>MP: {{ c.base_stats.mp }}</div>
+                                <div>攻击: {{ c.base_stats.attack }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="errorMessage" class="p-3 bg-red-500 bg-opacity-20 border border-red-500 rounded-lg">
+                    <p class="text-red-200">{{ errorMessage }}</p>
+                </div>
+
+                <button type="submit" :disabled="isLoading" class="w-full py-3 bg-gradient-to-r from-green-500 to-blue-600 text-white font-bold rounded-lg hover:from-green-600 hover:to-blue-700 transition-all transform hover:scale-105">
+                    {{ isLoading ? '创建中...' : '开始冒险！' }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    templates: null,
+                    isLoading: false,
+                    errorMessage: '',
+                    form: {
+                        name: '',
+                        personality: '',
+                        character_class: ''
+                    }
+                };
+            },
+            methods: {
+                async loadTemplates() {
+                    try {
+                        const response = await fetch('/api/character/templates', {
+                            credentials: 'include'
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.templates = data;
+                        }
+                    } catch (error) {
+                        console.error('Load templates error:', error);
+                    }
+                },
+                async createCharacter() {
+                    this.errorMessage = '';
+                    if (!this.form.name || !this.form.personality || !this.form.character_class) {
+                        this.errorMessage = '请填写所有信息';
+                        return;
+                    }
+                    
+                    this.isLoading = true;
+                    try {
+                        const response = await fetch('/api/character/create', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify(this.form)
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            window.location.href = '/game.html';
+                        } else {
+                            this.errorMessage = data.error;
+                        }
+                    } catch (error) {
+                        this.errorMessage = '创建失败，请重试';
+                    } finally {
+                        this.isLoading = false;
+                    }
+                }
+            },
+            mounted() {
+                this.loadTemplates();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

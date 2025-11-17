@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPG 冒险游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-gray-900">
+    <div id="app" class="min-h-screen">
+        <!-- Top Bar -->
+        <div class="bg-gray-800 border-b border-gray-700 p-4">
+            <div class="container mx-auto flex justify-between items-center">
+                <div class="text-white">
+                    <span class="text-2xl font-bold">⚔️ {{ character ? character.name : '加载中...' }}</span>
+                    <span class="ml-4 text-sm text-gray-400">Lv.{{ character ? character.level : '-' }}</span>
+                </div>
+                <div class="flex gap-4">
+                    <button @click="currentView = 'game'" class="text-white hover:text-blue-400">游戏</button>
+                    <button @click="currentView = 'inventory'" class="text-white hover:text-blue-400">背包</button>
+                    <button @click="currentView = 'shop'" class="text-white hover:text-blue-400">商店</button>
+                    <button @click="logout" class="text-red-400 hover:text-red-300">登出</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container mx-auto p-4">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <!-- Left Panel - Character Stats -->
+                <div class="bg-gray-800 rounded-lg p-6 text-white">
+                    <h2 class="text-xl font-bold mb-4">角色状态</h2>
+                    <div v-if="character" class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>HP:</span>
+                            <span class="text-red-400">{{ character.hp }}/{{ character.max_hp }}</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-red-500 h-2 rounded-full" :style="{width: (character.hp/character.max_hp*100) + '%'}"></div>
+                        </div>
+                        
+                        <div class="flex justify-between">
+                            <span>MP:</span>
+                            <span class="text-blue-400">{{ character.mp }}/{{ character.max_mp }}</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" :style="{width: (character.mp/character.max_mp*100) + '%'}"></div>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-700">
+                            <div class="flex justify-between"><span>攻击:</span><span>{{ character.attack }}</span></div>
+                            <div class="flex justify-between"><span>防御:</span><span>{{ character.defense }}</span></div>
+                            <div class="flex justify-between"><span>金币:</span><span class="text-yellow-400">{{ character.gold }}</span></div>
+                            <div class="flex justify-between"><span>经验:</span><span class="text-green-400">{{ character.experience }}/{{ character.level * 100 }}</span></div>
+                        </div>
+
+                        <div v-if="activeQuests.length > 0" class="pt-4 border-t border-gray-700">
+                            <h3 class="font-bold mb-2">当前任务</h3>
+                            <div v-for="quest in activeQuests" :key="quest.id" class="text-sm text-gray-300">
+                                📜 {{ quest.name }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Panel - Main Content -->
+                <div class="lg:col-span-2">
+                    <!-- Game View -->
+                    <div v-if="currentView === 'game'" class="space-y-4">
+                        <!-- Combat View -->
+                        <div v-if="combatState && combatState.active" class="bg-red-900 bg-opacity-30 rounded-lg p-6">
+                            <h2 class="text-2xl font-bold text-white mb-4">⚔️ 战斗中</h2>
+                            <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                                <div class="text-white text-center">
+                                    <div class="text-4xl mb-2">{{ combatState.enemy.icon }}</div>
+                                    <div class="text-xl font-bold">{{ combatState.enemy.name }}</div>
+                                    <div class="text-sm text-gray-400">Lv.{{ combatState.enemy.level }}</div>
+                                    <div class="mt-2">
+                                        <div class="text-sm">HP: {{ combatState.enemy.hp }}/{{ combatState.enemy.max_hp }}</div>
+                                        <div class="w-full bg-gray-700 rounded-full h-3 mt-1">
+                                            <div class="bg-red-500 h-3 rounded-full" :style="{width: (combatState.enemy.hp/combatState.enemy.max_hp*100) + '%'}"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Combat Log -->
+                            <div class="bg-gray-800 rounded-lg p-4 mb-4 max-h-40 overflow-y-auto">
+                                <div v-for="(log, index) in combatState.log" :key="index" class="text-sm text-gray-300 mb-1">
+                                    {{ log }}
+                                </div>
+                            </div>
+
+                            <!-- Combat Actions -->
+                            <div class="grid grid-cols-2 gap-2">
+                                <button @click="doCombatAction('attack')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg">
+                                    ⚔️ 攻击
+                                </button>
+                                <button @click="doCombatAction('defend')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">
+                                    🛡️ 防御
+                                </button>
+                                <button @click="doCombatAction('flee')" class="bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg">
+                                    🏃 逃跑
+                                </button>
+                                <button @click="showItemSelection = true" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg">
+                                    🎒 使用物品
+                                </button>
+                            </div>
+
+                            <!-- Item Selection Modal -->
+                            <div v-if="showItemSelection" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showItemSelection = false">
+                                <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full" @click.stop>
+                                    <h3 class="text-white font-bold mb-4">选择物品</h3>
+                                    <div class="space-y-2">
+                                        <div v-for="item in consumableItems" :key="item.id" @click="useItemInCombat(item.item_id)" class="bg-gray-700 hover:bg-gray-600 p-3 rounded cursor-pointer text-white">
+                                            {{ item.icon }} {{ item.name }} x{{ item.quantity }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Exploration View -->
+                        <div v-else class="bg-gray-800 rounded-lg p-6">
+                            <h2 class="text-2xl font-bold text-white mb-4">🗺️ 探索</h2>
+                            
+                            <!-- Location Info -->
+                            <div v-if="currentLocation" class="mb-4 p-4 bg-gray-700 rounded-lg text-white">
+                                <div class="text-3xl mb-2">{{ currentLocation.icon }}</div>
+                                <div class="text-xl font-bold">{{ currentLocation.name }}</div>
+                                <div class="text-sm text-gray-400">{{ currentLocation.description }}</div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <button @click="explore()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg">
+                                    🔍 探索
+                                </button>
+                                <button @click="showLocationSelection = true" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">
+                                    🚶 移动
+                                </button>
+                            </div>
+
+                            <!-- Chat with AI -->
+                            <div class="bg-gray-700 rounded-lg p-4">
+                                <h3 class="text-white font-bold mb-2">与叙述者对话</h3>
+                                <div class="space-y-2 max-h-60 overflow-y-auto mb-2">
+                                    <div v-for="(msg, i) in messages" :key="i" :class="['p-2 rounded', msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-600 text-white']">
+                                        {{ msg.content }}
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <input v-model="chatInput" @keyup.enter="sendChat" class="flex-1 px-3 py-2 bg-gray-600 text-white rounded" placeholder="输入消息...">
+                                    <button @click="sendChat" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                                        发送
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory View -->
+                    <div v-if="currentView === 'inventory'" class="bg-gray-800 rounded-lg p-6">
+                        <h2 class="text-2xl font-bold text-white mb-4">🎒 背包</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div v-for="item in inventory" :key="item.id" class="bg-gray-700 rounded-lg p-4 text-white hover:bg-gray-600 cursor-pointer" @click="equipItem(item)">
+                                <div class="text-2xl mb-2">{{ item.icon }}</div>
+                                <div class="font-bold">{{ item.name }}</div>
+                                <div class="text-sm text-gray-400">{{ item.type }}</div>
+                                <div v-if="item.quantity > 1" class="text-sm">x{{ item.quantity }}</div>
+                                <div v-if="item.is_equipped" class="text-green-400 text-sm">已装备</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shop View -->
+                    <div v-if="currentView === 'shop'" class="bg-gray-800 rounded-lg p-6">
+                        <h2 class="text-2xl font-bold text-white mb-4">🏪 商店</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div v-for="item in shopItems" :key="item.id" class="bg-gray-700 rounded-lg p-4 text-white">
+                                <div class="text-2xl mb-2">{{ item.icon }}</div>
+                                <div class="font-bold">{{ item.name }}</div>
+                                <div class="text-sm text-gray-400 mb-2">{{ item.description }}</div>
+                                <div class="text-yellow-400 mb-2">💰 {{ item.price }}</div>
+                                <button @click="buyItem(item.id)" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded">
+                                    购买
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Selection Modal -->
+        <div v-if="showLocationSelection" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click="showLocationSelection = false">
+            <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full" @click.stop>
+                <h3 class="text-white font-bold mb-4">选择目的地</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div v-for="(loc, id) in locations" :key="id" @click="moveTo(id)" class="bg-gray-700 hover:bg-gray-600 p-4 rounded cursor-pointer text-white">
+                        <div class="text-3xl mb-2">{{ loc.icon }}</div>
+                        <div class="font-bold">{{ loc.name }}</div>
+                        <div class="text-sm text-gray-400">{{ loc.description }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/game.js"></script>
+</body>
+</html>

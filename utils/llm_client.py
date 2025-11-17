@@ -25,7 +25,8 @@ class GeminiClient:
         self,
         user_message: str,
         current_scene: str,
-        conversation_history: Optional[List[Dict]] = None
+        conversation_history: Optional[List[Dict]] = None,
+        system_context: Optional[str] = None
     ) -> Dict:
         """
         Generate AI response using Gemini API
@@ -34,6 +35,7 @@ class GeminiClient:
             user_message: User's input message
             current_scene: Current scene ID (computer_room, bedroom, mcp_studio, planning_room)
             conversation_history: List of previous messages for context
+            system_context: Additional system context (for RPG game state, etc.)
 
         Returns:
             Dict containing:
@@ -43,7 +45,7 @@ class GeminiClient:
                 - mcp_command: MCP command if in MCP studio (optional)
         """
         # Build the prompt with scene context
-        prompt = self._build_prompt(user_message, current_scene, conversation_history)
+        prompt = self._build_prompt(user_message, current_scene, conversation_history, system_context)
 
         # Prepare API request
         payload = {
@@ -101,9 +103,14 @@ class GeminiClient:
         self,
         user_message: str,
         current_scene: str,
-        conversation_history: Optional[List[Dict]] = None
+        conversation_history: Optional[List[Dict]] = None,
+        system_context: Optional[str] = None
     ) -> str:
         """Build structured prompt for Gemini API"""
+
+        # If system_context is provided, use it directly (for RPG mode)
+        if system_context:
+            return system_context
 
         # Scene descriptions
         scene_info = {
